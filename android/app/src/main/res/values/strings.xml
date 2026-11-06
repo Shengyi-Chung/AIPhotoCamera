@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">AI Photo Camera</string>
+    <string name="focus_hint">轻触画面对焦</string>
+    <string name="grid">网格</string>
+    <string name="flip">翻转</string>
+    <string name="flash">闪光</string>
+    <string name="exposure">曝光</string>
+</resources>

@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0B0F14"
+    android:orientation="vertical">
+
+    <!-- 标题栏 + 操作 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="14dp"
+        android:paddingTop="22dp"
+        android:paddingBottom="10dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="运行日志"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnRefresh"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:background="@drawable/bg_zoom_pill"
+            android:minWidth="0dp"
+            android:paddingHorizontal="12dp"
+            android:text="刷新"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp" />
+
+        <Button
+            android:id="@+id/btnCopy"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_zoom_pill"
+            android:minWidth="0dp"
+            android:paddingHorizontal="12dp"
+            android:text="复制"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp" />
+
+        <Button
+            android:id="@+id/btnShare"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_calib_button"
+            android:minWidth="0dp"
+            android:paddingHorizontal="12dp"
+            android:text="分享"
+            android:textColor="#3FD6C0"
+            android:textSize="11sp" />
+
+        <Button
+            android:id="@+id/btnClose"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_zoom_pill"
+            android:minWidth="0dp"
+            android:paddingHorizontal="12dp"
+            android:text="关闭"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp" />
+    </LinearLayout>
+
+    <!-- 过滤 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingHorizontal="14dp"
+        android:paddingBottom="8dp">
+
+        <EditText
+            android:id="@+id/filterInput"
+            android:layout_width="match_parent"
+            android:layout_height="38dp"
+            android:background="#1AFFFFFF"
+            android:hint="过滤关键字（如 Anchor / Subject / Error）"
+            android:inputType="text"
+            android:paddingHorizontal="10dp"
+            android:textColor="#FFFFFF"
+            android:textColorHint="#66FFFFFF"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/logText"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fontFamily="monospace"
+        android:padding="10dp"
+        android:scrollbars="vertical"
+        android:textColor="#B9F5E6"
+        android:textIsSelectable="true"
+        android:textSize="10sp" />
+
+</LinearLayout>

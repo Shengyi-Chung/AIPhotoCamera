@@ -1,0 +1,12 @@
+{
+  "assistant": { "enabledByDefault": true },
+  "cooldownMs": 3000,
+  "globalGapMs": 8000,
+  "confidenceMin": 0.6,
+  "priority": ["dark", "glare", "tilt"],
+  "rules": {
+    "tilt":  { "thresholdDeg": 5,  "confidenceMin": 0.6, "text": "Level the horizon",          "arrow": true  },
+    "dark":  { "meanLumaMax": 62,  "darkRatioMin": 0.35,  "text": "Move to the light"                          },
+    "glare": { "ratioMin": 0.06,   "text": "Angle away from the glare"                                              }
+  }
+}

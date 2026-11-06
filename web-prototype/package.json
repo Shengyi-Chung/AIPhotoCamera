@@ -1,0 +1,7 @@
+{
+  "name": "photo-assistant-prototype",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "AIAA4435 AI photography assistant - minimal browser prototype"
+}

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>摄像头自检</title>
+<style>
+  body{margin:0;padding:20px;background:#0b1219;color:#eaf2f8;font:14px/1.6 "Microsoft YaHei",system-ui,sans-serif}
+  h1{font-size:18px;margin:0 0 12px}
+  pre{background:#111a24;border:1px solid #2a3a4a;border-radius:10px;padding:12px;white-space:pre-wrap;font:12px/1.6 ui-monospace,Consolas,monospace;color:#a9c0d6}
+  .ok{color:#3fd6c0}.bad{color:#e06666}.warn{color:#ffb454}
+  button{font:inherit;color:#eaf2f8;background:#1d2a3a;border:1px solid #2a3a4a;border-radius:8px;padding:8px 14px;cursor:pointer;margin:6px 6px 0 0}
+  video{width:100%;max-width:420px;border-radius:10px;margin-top:10px;background:#000}
+</style>
+</head>
+<body>
+<h1>摄像头自检</h1>
+<pre id="out">初始化…</pre>
+<button id="btnReq">请求摄像头权限</button>
+<button id="btnList">列出设备</button>
+<video id="v" playsinline autoplay muted></video>
+
+<script type="module">
+const out = document.getElementById('out');
+const v = document.getElementById('v');
+const log = (s, cls = '') => {
+  const line = cls ? `<span class="${cls}">${s}</span>` : s;
+  out.innerHTML += '\n' + line;
+  console.log(s);
+};
+
+out.textContent = '';
+log('URL      : ' + location.href);
+log('secureContext : ' + (window.isSecureContext ? 'true（可用摄像头）' : 'false（不可用！必须 localhost 或 https）'), window.isSecureContext ? 'ok' : 'bad');
+log('protocol : ' + location.protocol, location.protocol === 'file:' ? 'bad' : '');
+if (location.protocol === 'file:') log('→ 不要双击 html，请用 run.py 启动后再访问 http://127.0.0.1:端口/live.html', 'warn');
+log('mediaDevices : ' + (!!navigator.mediaDevices ? '存在' : '不存在'), navigator.mediaDevices ? 'ok' : 'bad');
+log('getUserMedia : ' + (!!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) ? '存在' : '不存在'));
+
+document.getElementById('btnList').onclick = async () => {
+  try {
+    const ds = await navigator.mediaDevices.enumerateDevices();
+    const cams = ds.filter(d => d.kind === 'videoinput');
+    log(`\n视频设备 ${cams.length} 个：`);
+    cams.forEach((d, i) => log(`  [${i}] ${d.label || '(未授权时看不到名称)'}  id=${d.deviceId.slice(0, 12)}…`));
+  } catch (e) { log('枚举失败：' + e.name + ' ' + e.message, 'bad'); }
+};
+
+document.getElementById('btnReq').onclick = async () => {
+  log('\n请求 getUserMedia …');
+  try {
+    const t0 = performance.now();
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+    log('成功，耗时 ' + Math.round(performance.now() - t0) + ' ms', 'ok');
+    const t = stream.getVideoTracks()[0];
+    const s = t.getSettings();
+    log('设备：' + (t.label || '未知') + `  ${s.width}x${s.height}  fps=${s.frameRate || '?'}`);
+    v.srcObject = stream;
+    v.play().then(() => log('video.play() 成功', 'ok')).catch(e => log('video.play() 失败：' + e.name, 'bad'));
+  } catch (e) {
+    log('失败：' + e.name + ' — ' + e.message, 'bad');
+    const tips = {
+      NotAllowedError: '权限被拒绝：点地址栏左侧的摄像头图标 → 允许；或清掉之前的"阻止"记录',
+      NotFoundError: '没找到摄像头设备：检查设备管理器 / 是否被禁用',
+      NotReadableError: '设备被占用：关掉 Zoom/Teams/微信视频/相机 App 再试',
+      OverconstrainedError: '约束不满足：换设备或降低分辨率要求',
+      SecurityError: '安全上下文不够：必须 http://127.0.0.1 或 https',
+      AbortError: '启动被中断，重试一次',
+    };
+    if (tips[e.name]) log('→ ' + tips[e.name], 'warn');
+  }
+};
+</script>
+</body>
+</html>

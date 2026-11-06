@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI 拍照助手 · 演示</title>
+<style>
+  :root{
+    --ink:#0b1219; --viewer:#0e1720; --line:rgba(255,255,255,.14);
+    --teal:#3fd6c0; --amber:#ffb454; --muted:#8ea3b8;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0;background:radial-gradient(1200px 700px at 50% -10%, #16324a 0%, #0b1219 55%, #070c11 100%);
+    color:#eaf2f8;font:15px/1.5 "Microsoft YaHei",system-ui,sans-serif;
+    display:flex;align-items:center;justify-content:center;padding:16px;
+  }
+  .app{width:min(1000px,100%);display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:center}
+  @media (max-width:860px){.app{grid-template-columns:1fr}}
+
+  /* 取景器 */
+  .viewer{
+    position:relative;aspect-ratio:4/3;border-radius:26px;overflow:hidden;background:#000;
+    box-shadow:0 24px 70px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.08);
+  }
+  .viewer canvas{position:absolute;inset:0;width:100%;height:100%}
+  .grid{position:absolute;inset:0;pointer-events:none;opacity:.22}
+  .grid i{position:absolute;background:#fff}
+  .grid i.v{top:0;bottom:0;width:1px}
+  .grid i.h{left:0;right:0;height:1px}
+  .corner{position:absolute;width:26px;height:26px;border:2px solid rgba(255,255,255,.5);pointer-events:none}
+  .corner.tl{top:14px;left:14px;border-right:0;border-bottom:0;border-radius:8px 0 0 0}
+  .corner.tr{top:14px;right:14px;border-left:0;border-bottom:0;border-radius:0 8px 0 0}
+  .corner.bl{bottom:14px;left:14px;border-right:0;border-top:0;border-radius:0 0 0 8px}
+  .corner.br{bottom:14px;right:14px;border-left:0;border-top:0;border-radius:0 0 8px 0}
+
+  /* 顶部信息 */
+  .topbar{position:absolute;top:0;left:0;right:0;padding:16px 18px;display:flex;justify-content:space-between;
+          align-items:center;font-size:13px;letter-spacing:.02em;color:rgba(255,255,255,.85);
+          background:linear-gradient(180deg,rgba(0,0,0,.45),transparent)}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--teal);margin-right:7px;
+       box-shadow:0 0 0 4px rgba(63,214,192,.16)}
+  .dot.off{background:#8896a5;box-shadow:none}
+
+  /* 提示条 */
+  .hint{
+    position:absolute;left:20px;right:20px;bottom:86px;padding:14px 18px;border-radius:16px;
+    background:rgba(8,16,24,.78);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(8px);
+    display:flex;align-items:center;gap:12px;transform:translateY(8px);opacity:0;transition:all .28s ease;
+  }
+  .hint.show{transform:translateY(0);opacity:1}
+  .hint .icon{font-size:20px;line-height:1}
+  .hint .main{font-size:19px;font-weight:600}
+  .hint .sub{font-size:12px;color:var(--muted);margin-top:2px}
+
+  /* 底部快门 */
+  .dock{position:absolute;left:0;right:0;bottom:0;height:86px;display:flex;align-items:center;justify-content:center;
+        background:linear-gradient(0deg,rgba(0,0,0,.55),transparent)}
+  .shutter{width:62px;height:62px;border-radius:50%;background:#fff;border:5px solid rgba(255,255,255,.35);
+           cursor:pointer;transition:transform .12s}
+  .shutter:active{transform:scale(.93)}
+
+  /* 侧栏 */
+  .side{display:flex;flex-direction:column;gap:12px}
+  .card{background:rgba(18,28,38,.75);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:16px}
+  .card h2{margin:0 0 10px;font-size:12px;letter-spacing:.08em;color:var(--muted);font-weight:600}
+  .big{font-size:15px;line-height:1.6}
+  .big b{color:#fff}
+  .btns{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  button{font:inherit;color:#eaf2f8;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);
+         border-radius:12px;padding:11px 14px;cursor:pointer;transition:.15s;text-align:left}
+  button:hover{background:rgba(255,255,255,.14)}
+  button.primary{background:linear-gradient(180deg,#3fd6c0,#26a895);color:#062a26;border-color:transparent;font-weight:700}
+  button.warn{background:rgba(255,180,84,.14);border-color:rgba(255,180,84,.4);color:#ffcf8a}
+  .kv{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;border-bottom:1px dashed rgba(255,255,255,.08)}
+  .kv:last-child{border:0}
+  .kv span{color:var(--muted)}
+  .step{font-size:12px;color:var(--muted);margin-top:10px;min-height:34px}
+
+  /* 开场浮层 */
+  .intro{position:fixed;inset:0;background:rgba(5,9,13,.82);backdrop-filter:blur(6px);
+         display:flex;align-items:center;justify-content:center;padding:24px;z-index:20;text-align:center}
+  .intro.hide{display:none}
+  .intro .box{max-width:520px}
+  .intro h1{font-size:26px;margin:0 0 10px}
+  .intro p{color:#b9c9d8;margin:6px 0;font-size:14px}
+  .intro button{margin-top:18px;width:100%;text-align:center;font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- 取景器 -->
+  <div class="viewer">
+    <canvas id="scene" width="800" height="600"></canvas>
+    <canvas id="overlay" width="800" height="600"></canvas>
+
+    <div class="grid">
+      <i class="v" style="left:33.33%"></i><i class="v" style="left:66.66%"></i>
+      <i class="h" style="top:33.33%"></i><i class="h" style="top:66.66%"></i>
+    </div>
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+
+    <div class="topbar">
+      <div><span class="dot" id="dot"></span><span id="stateLabel">助手已开启</span></div>
+      <div id="modeLabel">演示场景</div>
+    </div>
+
+    <div class="hint" id="hint">
+      <div class="icon" id="hintIcon">◐</div>
+      <div>
+        <div class="main" id="hintMain">准备就绪</div>
+        <div class="sub" id="hintSub">轻触下方快门即可拍摄</div>
+      </div>
+    </div>
+
+    <div class="dock"><div class="shutter" id="shutter" title="按下快门"></div></div>
+  </div>
+
+  <!-- 侧栏 -->
+  <aside class="side">
+    <div class="card">
+      <h2>演示控制</h2>
+      <div class="big">一键演示：<b>歪了 → 提示 → 摆正 → 消失</b></div>
+      <div class="btns">
+        <button class="primary" id="btnAuto">▶ 播放一键演示（约 30 秒）</button>
+        <button id="btnTiltAuto">模拟「相机拿歪了」</button>
+        <button id="btnDark">模拟「光线太暗」</button>
+        <button id="btnGlare">模拟「镜头反光」</button>
+        <button class="warn" id="btnToggle">关闭助手（对照组 A）</button>
+      </div>
+      <div class="step" id="stepText"></div>
+    </div>
+
+    <div class="card">
+      <h2>灵感模式（照片没毛病，想更好看）</h2>
+      <div class="big">默认层只纠错；<b>审美建议必须由你主动要</b>。</div>
+      <div class="btns">
+        <button id="btnCreative">✨ 给我一个构图灵感</button>
+      </div>
+      <div class="step" id="creativeText">画面正常时不会自动打扰；点一下，才给一个「邀请式」建议。</div>
+    </div>
+
+    <div class="card">
+      <h2>实时状态</h2>
+      <div class="kv"><span>地平线角度</span><b id="kAngle">0.0°</b></div>
+      <div class="kv"><span>置信度</span><b id="kConf">—</b></div>
+      <div class="kv"><span>平均亮度</span><b id="kLuma">—</b></div>
+      <div class="kv"><span>反光占比</span><b id="kGlare">—</b></div>
+      <div class="kv"><span>提示状态</span><b id="kPrompt">—</b></div>
+    </div>
+
+    <div class="card">
+      <h2>怎么讲（30 秒版）</h2>
+      <div style="font-size:13px;color:#c3d2e0;line-height:1.7">
+        ① 大多数人 20 秒内拍完、75% 不用网格；<br>
+        ② 第一痛点是「氛围不对」，然后重拍 64%、放弃 43%；<br>
+        ③ 所以助手只在拍前说一句、随时能关；<br>
+        ④ 点「关闭助手」看对照组：同一个场景，什么都没有。
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="intro" id="intro">
+  <div class="box">
+    <h1>AI 拍照助手 · 交互原型</h1>
+    <p>在按下快门之前，只说一句有用的话。</p>
+    <p style="color:#8ea3b8">演示场景为合成画面，任何电脑都能跑，不需要摄像头。</p>
+    <button class="primary" id="btnStart">开始演示</button>
+  </div>
+</div>
+
+<script type="module" src="./showcase.js"></script>
+</body>
+</html>

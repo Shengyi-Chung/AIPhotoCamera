@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI 拍照助手 · 最小原型</title>
+<style>
+  :root{
+    --bg:#0f1620; --panel:#16202c; --line:#243244; --text:#e8eef6;
+    --muted:#8fa3ba; --accent:#2e9e8f; --warn:#e6a23c; --bad:#e06666;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 "Microsoft YaHei",system-ui,sans-serif}
+  header{padding:14px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+  header h1{font-size:16px;margin:0;font-weight:600}
+  header .tag{font-size:12px;color:var(--muted);border:1px solid var(--line);padding:2px 8px;border-radius:999px}
+  main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;padding:16px;align-items:start}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+  .stage{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:4/3;max-height:70vh}
+  .stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  /* 不镜像：默认用后置摄像头取景，文字与箭头才不会被翻转 */
+  .banner{position:absolute;left:12px;right:12px;bottom:12px;padding:10px 14px;border-radius:10px;
+          background:rgba(10,18,26,.82);border:1px solid var(--line);font-size:15px;min-height:44px;
+          display:flex;align-items:center;gap:10px}
+  .banner .cue{color:var(--warn);font-weight:600}
+  .banner.off{opacity:.45}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+  .panel h2{font-size:13px;color:var(--muted);margin:0 0 10px;font-weight:600;letter-spacing:.04em}
+  .row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dashed #1d2937;font-size:13px}
+  .row:last-child{border-bottom:none}
+  .row b{font-weight:600}
+  .ok{color:var(--accent)} .warn{color:var(--warn)} .bad{color:var(--bad)} .muted{color:var(--muted)}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  button{background:#1d2a3a;color:var(--text);border:1px solid var(--line);border-radius:8px;
+         padding:8px 12px;font-size:13px;cursor:pointer}
+  button:hover{border-color:#38506b}
+  button.on{background:#173f3a;border-color:var(--accent);color:#bff0e8}
+  .slider{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:13px;color:var(--muted)}
+  input[type=range]{flex:1}
+  .hint{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6}
+  .log{max-height:150px;overflow:auto;font:12px/1.5 ui-monospace,Consolas,monospace;color:#a9c0d6;
+       background:#111a24;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:10px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<header>
+  <h1>AI 拍照助手 · 最小原型</h1>
+  <span class="tag">默认层 ≤1 句 · 可随时关闭</span>
+  <span class="tag" id="modeTag">摄像头</span>
+</header>
+
+<main>
+  <section class="stage">
+    <video id="video" playsinline autoplay muted></video>
+    <canvas id="overlay" width="320" height="240"></canvas>
+    <div class="banner off" id="banner">
+      <span class="cue" id="cueName">—</span>
+      <span id="cueText">点击「开始」授权摄像头</span>
+    </div>
+  </section>
+
+  <aside>
+    <div class="panel">
+      <h2>状态</h2>
+      <div class="row"><span>助手</span><b id="stEnabled" class="ok">开启</b></div>
+      <div class="row"><span>地平线角度</span><b id="stAngle">—</b></div>
+      <div class="row"><span>虚拟倾斜</span><b id="stSim">0°</b></div>
+      <div class="row"><span>置信度</span><b id="stConf">—</b></div>
+      <div class="row"><span>平均亮度</span><b id="stLuma">—</b></div>
+      <div class="row"><span>反光占比</span><b id="stGlare">—</b></div>
+      <div class="row"><span>帧率</span><b id="stFps">—</b></div>
+      <div class="btns">
+        <button id="btnStart">开始（摄像头）</button>
+        <button id="btnDemo">演示模式</button>
+        <button id="btnToggle" class="on">助手：开</button>
+        <button id="btnShot">模拟快门</button>
+      </div>
+      <div class="slider">
+        <span>倾斜阈值</span>
+        <input id="thr" type="range" min="1" max="20" step="1" value="5" />
+        <b id="thrVal">5°</b>
+      </div>
+      <div class="slider">
+        <span>虚拟倾斜</span>
+        <input id="simTilt" type="range" min="-20" max="20" step="1" value="0" />
+        <b id="simTiltVal">0°</b>
+      </div>
+      <div class="hint">
+        笔记本摄像头转不动？用「虚拟倾斜」把画面旋转后再检测，等于模拟"相机拿歪了"。<br />
+        快捷键：<b>空格</b> 开关助手 · <b>D</b> 演示模式 · <b>[</b> / <b>]</b> 调虚拟倾斜 · <b>Z</b> 归零 · <b>S</b> 模拟快门
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:12px">
+      <h2>事件日志</h2>
+      <div class="btns">
+        <button id="btnExport">导出 JSON</button>
+        <button id="btnClear">清空</button>
+      </div>
+      <div class="log" id="logBox">（无事件）</div>
+    </div>
+  </aside>
+</main>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

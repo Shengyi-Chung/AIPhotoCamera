@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>AI 拍照助手 · Live</title>
+<style>
+  :root{--teal:#3fd6c0;--amber:#ffb454;--line:rgba(255,255,255,.16)}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;margin:0;background:#05080b;color:#eef5fa;
+    font:14px/1.5 "Microsoft YaHei",system-ui,sans-serif;overflow:hidden}
+  #app{position:relative;height:100%;display:flex;flex-direction:column}
+
+  /* 取景区 */
+  #stage{position:relative;flex:1;background:#000;overflow:hidden}
+  #video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+  #overlay{position:absolute;inset:0;width:100%;height:100%}
+
+  .bar{position:absolute;left:0;right:0;display:flex;align-items:center;justify-content:space-between;
+       padding:12px 16px;font-size:13px;z-index:5}
+  .bar.top{top:0;background:linear-gradient(180deg,rgba(0,0,0,.55),transparent)}
+  .bar.bottom{bottom:0;padding-bottom:calc(12px + env(safe-area-inset-bottom));
+       background:linear-gradient(0deg,rgba(0,0,0,.62),transparent)}
+  .pill{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;
+        background:rgba(10,18,26,.6);border:1px solid var(--line);backdrop-filter:blur(6px)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 4px rgba(63,214,192,.15)}
+  .dot.off{background:#8a99a8;box-shadow:none}
+  button{font:inherit;color:#eef5fa;background:rgba(10,18,26,.62);border:1px solid var(--line);
+         border-radius:12px;padding:9px 14px;cursor:pointer;backdrop-filter:blur(6px)}
+  button:active{transform:scale(.97)}
+  button.primary{background:linear-gradient(180deg,#3fd6c0,#22a291);color:#04241f;border:0;font-weight:700}
+
+  /* 提示条 */
+  #hint{position:absolute;left:14px;right:14px;bottom:96px;padding:13px 16px;border-radius:14px;
+        background:rgba(6,14,20,.8);border:1px solid var(--line);backdrop-filter:blur(8px);
+        display:flex;gap:12px;align-items:center;opacity:0;transform:translateY(8px);transition:.25s;z-index:4}
+  #hint.show{opacity:1;transform:none}
+  #hint .ic{font-size:19px}
+  #hint .main{font-size:18px;font-weight:600}
+  #hint .sub{font-size:12px;color:#93a7b9;margin-top:2px}
+
+  /* 快门 + 缩略图 */
+  .shoot{display:flex;align-items:center;justify-content:center;position:relative;height:76px}
+  #shutter{width:64px;height:64px;border-radius:50%;background:#fff;border:5px solid rgba(255,255,255,.32);cursor:pointer}
+  #shutter:disabled{opacity:.4}
+  #thumb{position:absolute;left:16px;width:52px;height:52px;border-radius:10px;object-fit:cover;
+         border:2px solid rgba(255,255,255,.7);display:none;cursor:pointer}
+
+  /* 拍后轻卡 */
+  #review{position:absolute;left:14px;right:14px;bottom:96px;padding:14px 16px;border-radius:14px;
+          background:rgba(9,18,26,.9);border:1px solid var(--line);backdrop-filter:blur(10px);
+          display:none;z-index:6}
+  #review.show{display:block}
+  #review h3{margin:0 0 8px;font-size:15px}
+  #review .row{font-size:13px;color:#c9d8e5;margin:4px 0}
+  #review .row b{color:#fff}
+  #review .acts{display:flex;gap:8px;margin-top:10px}
+  #review .acts button{flex:1;text-align:center;padding:8px}
+
+  /* 开场 */
+  #gate{position:fixed;inset:0;z-index:20;background:radial-gradient(900px 600px at 50% 0%,#17334b,#070b0f 60%);
+        display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}
+  #gate.hide{display:none}
+  #gate .box{max-width:460px}
+  #gate h1{font-size:24px;margin:0 0 8px}
+  #gate p{color:#b6c6d4;font-size:13px;margin:6px 0}
+  #gate .warn{color:#ffcf8a}
+
+  /* 灵感幽灵框提示 */
+  #suggest{position:absolute;left:14px;right:14px;top:64px;padding:10px 14px;border-radius:12px;
+           background:rgba(6,20,18,.82);border:1px solid rgba(63,214,192,.45);color:#bff0e8;
+           font-size:13px;display:none;z-index:5}
+  #suggest.show{display:block}
+
+  /* 点击对焦框 */
+  #focusRing{position:absolute;width:74px;height:74px;margin:-37px 0 0 -37px;border:2px solid #ffd479;
+             border-radius:8px;pointer-events:none;display:none;z-index:7;
+             box-shadow:0 0 0 1px rgba(0,0,0,.35), inset 0 0 12px rgba(255,212,121,.35)}
+  #focusRing.pulse{animation:focusPulse .45s ease-out}
+  @keyframes focusPulse{0%{transform:scale(1.35);opacity:.4}100%{transform:scale(1);opacity:1}}
+
+  /* 首次引导 */
+  #guide{position:absolute;inset:0;z-index:15;background:rgba(4,8,12,.78);backdrop-filter:blur(3px);
+         display:none;align-items:center;justify-content:center;padding:22px}
+  #guide.show{display:flex}
+  #guide .card{max-width:420px;background:rgba(14,24,34,.96);border:1px solid rgba(255,255,255,.14);
+               border-radius:18px;padding:20px 22px;text-align:left}
+  #guide h2{font-size:17px;margin:0 0 12px}
+  #guide ol{margin:0;padding-left:20px;font-size:13.5px;line-height:1.9;color:#cfdeea}
+  #guide li{margin-bottom:6px}
+  #guide .k{color:#3fd6c0;font-weight:700}
+  #guide button{width:100%;margin-top:16px;padding:12px;border-radius:12px;font-weight:700;
+                background:linear-gradient(180deg,#3fd6c0,#22a291);color:#04241f;border:0}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <video id="video" playsinline autoplay muted></video>
+    <canvas id="overlay"></canvas>
+
+    <div class="bar top">
+      <div class="pill"><span class="dot" id="dot"></span><span id="stateLabel">助手开</span></div>
+      <div style="display:flex;gap:8px">
+        <button id="btnSuggest">✨ 灵感</button>
+        <button id="btnHelp" title="使用说明">?</button>
+        <button id="btnFlip">切换</button>
+        <button id="btnToggle">关闭</button>
+      </div>
+    </div>
+
+    <div id="suggest"></div>
+    <div id="focusRing"></div>
+
+    <div id="hint">
+      <div class="ic" id="hintIc">◐</div>
+      <div>
+        <div class="main" id="hintMain">准备中…</div>
+        <div class="sub" id="hintSub"></div>
+      </div>
+    </div>
+
+    <div id="review">
+      <h3 id="rvTitle">拍完了</h3>
+      <div class="row" id="rvGood"></div>
+      <div class="row" id="rvTip"></div>
+      <div class="acts">
+        <button id="rvDownload">下载照片</button>
+        <button id="rvClose">关闭</button>
+      </div>
+    </div>
+
+    <div class="bar bottom">
+      <div class="shoot">
+        <img id="thumb" alt="最近一张" />
+        <div id="shutter" title="拍照"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="guide">
+  <div class="card">
+    <h2>怎么用</h2>
+    <ol>
+      <li><span class="k">点一下画面</span>：出现黄色对焦框，同时把这里记成"主体"，并画一条<span class="k">黄色主体虚线</span>。</li>
+      <li><span class="k">白色水平虚线</span>：它是"水平参考"。转手机，让画面里的<span class="k">橙色水平线</span>与它平行，变<span class="k">绿色</span>就说明端平了。</li>
+      <li><span class="k">蓝色虚线/框</span>：构图目标。让主体或顶部对齐它，对齐后变绿，表示构图到位。</li>
+      <li>底部提示条每次只说一件事；不想被打扰就点右上角<span class="k">关闭</span>（对照组）。</li>
+    </ol>
+    <button id="btnGuideOk">知道了，开始拍</button>
+  </div>
+</div>
+
+<div id="gate">
+  <div class="box">
+    <h1>AI 拍照助手 · 实拍版</h1>
+    <p>用你的摄像头实时取景，检测地平线、光线和反光，在按快门之前给一句建议。</p>
+    <p class="warn" id="secureWarn" style="display:none">⚠ 当前不是 HTTPS/localhost，浏览器不会给摄像头权限。</p>
+    <p style="color:#8ea3b8;font-size:12px">画面只在本机处理，不上传。</p>
+    <button class="primary" id="btnStart" style="margin-top:14px;width:100%;padding:12px">开启摄像头</button>
+    <p id="status" style="margin-top:12px;font-size:12.5px;color:#9fb4c6;min-height:20px;text-align:left;white-space:pre-wrap"></p>
+    <div id="errBox" style="display:none;margin-top:10px;padding:12px;border-radius:10px;
+         background:rgba(224,102,102,.12);border:1px solid rgba(224,102,102,.4);text-align:left;font-size:12.5px;color:#ffb3b3"></div>
+    <div style="margin-top:10px;display:flex;gap:8px">
+      <button id="btnRetry" style="flex:1;padding:10px">重试</button>
+      <button id="btnCamTest" style="flex:1;padding:10px" onclick="location.href='camtest.html'">摄像头自检</button>
+    </div>
+  </div>
+</div>
+
+<!-- file-hint:start -->
+<script>
+// 内联判断：file:// 下模块脚本会被 CORS 拦，这里先给出明确指引（不依赖 live.js）
+(function () {
+  if (location.protocol !== 'file:') return;
+  var box = document.createElement('div');
+  box.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99;padding:12px 16px;' +
+    'background:#7a2e2e;color:#ffdede;font:13px/1.6 "Microsoft YaHei",sans-serif;text-align:left';
+  box.innerHTML = '你是直接双击打开的（file://），浏览器会拦截模块脚本，按钮会没反应。<br>' +
+    '请改用：<b>live-single.html</b>（单文件版，双击可用），或用 <b>run.py</b> 启动后访问 http://127.0.0.1:端口/live.html';
+  document.body.appendChild(box);
+})();
+</script>
+<!-- file-hint:end -->
+<script type="module" src="./live.js"></script>
+</body>
+</html>

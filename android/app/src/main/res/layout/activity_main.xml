@@ -1,0 +1,384 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:orientation="vertical">
+
+    <!-- ==================== 取景区（上方，占满剩余高度） ==================== -->
+    <FrameLayout
+        android:id="@+id/previewContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#000000">
+
+        <androidx.camera.view.PreviewView
+            android:id="@+id/previewView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:keepScreenOn="true"
+            app:scaleType="fillCenter" />
+
+        <com.aiaa4435.camera.GridOverlay
+            android:id="@+id/gridOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- 主体框 + 三分法构图实点 -->
+        <com.aiaa4435.camera.SubjectOverlay
+            android:id="@+id/subjectOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- 校准靶心：只在进入校准模式时显示 -->
+        <com.aiaa4435.camera.CalibrationOverlay
+            android:id="@+id/calibrationOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <com.aiaa4435.camera.FocusRingView
+            android:id="@+id/focusRing"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- 顶部悬浮工具（很薄的一条，不挡画面主体） -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="16dp"
+            android:paddingTop="26dp"
+            android:paddingBottom="8dp">
+
+            <FrameLayout
+                android:id="@+id/flashBox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_tool_chip"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageButton
+                        android:id="@+id/btnFlash"
+                        android:layout_width="38dp"
+                        android:layout_height="38dp"
+                        android:background="?android:attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="闪光灯"
+                        android:padding="8dp"
+                        android:src="@drawable/ic_flash" />
+
+                    <TextView
+                        android:id="@+id/flashLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="2dp"
+                        android:layout_marginEnd="6dp"
+                        android:text="自动"
+                        android:textColor="#E6FFFFFF"
+                        android:textSize="10sp" />
+                </LinearLayout>
+            </FrameLayout>
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <ImageButton
+                android:id="@+id/btnGrid"
+                android:layout_width="42dp"
+                android:layout_height="42dp"
+                android:background="@drawable/bg_tool_chip"
+                android:contentDescription="网格"
+                android:padding="9dp"
+                android:src="@drawable/ic_grid" />
+        </LinearLayout>
+
+        <!-- 缩放倍数（浮层，短暂显示） -->
+        <TextView
+            android:id="@+id/zoomLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="86dp"
+            android:background="#66000000"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="4dp"
+            android:text="1.0x"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+        <!-- 实时检测数据（点击可开关） -->
+        <TextView
+            android:id="@+id/hud"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="start|top"
+            android:layout_marginStart="14dp"
+            android:layout_marginTop="78dp"
+            android:background="#99000000"
+            android:fontFamily="monospace"
+            android:lineSpacingExtra="2dp"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="7dp"
+            android:text="检测中…"
+            android:textColor="#B9F5E6"
+            android:textSize="11sp" />
+
+        <!-- 校准提示条（进入校准模式时显示，一句话说明该干什么） -->
+        <TextView
+            android:id="@+id/calibHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="26dp"
+            android:background="#CC000000"
+            android:paddingHorizontal="18dp"
+            android:paddingVertical="11dp"
+            android:text="转动手机，让画面里的水平线压到靶心"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
+        <!-- 快门闪光遮罩：只覆盖取景区 -->
+        <View
+            android:id="@+id/flashOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0"
+            android:background="@android:color/white"
+            android:clickable="false"
+            android:focusable="false" />
+    </FrameLayout>
+
+    <!-- ==================== 控制面板（下方，独立区域不遮挡画面） ==================== -->
+    <LinearLayout
+        android:id="@+id/controlPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#0B0F14"
+        android:orientation="vertical"
+        android:paddingTop="12dp"
+        android:paddingBottom="24dp">
+
+        <!-- 曝光补偿 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="30dp">
+
+            <ImageView
+                android:layout_width="15dp"
+                android:layout_height="15dp"
+                android:contentDescription="曝光"
+                android:src="@drawable/ic_ev"
+                android:tint="#99FFFFFF" />
+
+            <SeekBar
+                android:id="@+id/exposureBar"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="10dp"
+                android:layout_weight="1"
+                android:max="6"
+                android:progress="3" />
+
+            <TextView
+                android:id="@+id/exposureLabel"
+                android:layout_width="26dp"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:text="0"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- 缩放快捷 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnZoom1"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="52dp"
+                android:layout_height="30dp"
+                android:background="@drawable/bg_zoom_pill"
+                android:minWidth="0dp"
+                android:padding="0dp"
+                android:text="1x"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp" />
+
+            <Button
+                android:id="@+id/btnZoom2"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="52dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/bg_zoom_pill"
+                android:minWidth="0dp"
+                android:padding="0dp"
+                android:text="2x"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp" />
+
+            <Button
+                android:id="@+id/btnZoomMax"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="52dp"
+                android:layout_height="30dp"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/bg_zoom_pill"
+                android:minWidth="0dp"
+                android:padding="0dp"
+                android:text="MAX"
+                android:textColor="#FFFFFF"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <!-- 主控制行 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="30dp">
+
+            <!-- 左：最近照片 -->
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1">
+
+                <ImageView
+                    android:id="@+id/thumb"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:background="@drawable/bg_thumb"
+                    android:contentDescription="最近照片"
+                    android:scaleType="centerCrop"
+                    android:visibility="invisible" />
+            </FrameLayout>
+
+            <!-- 中：快门 -->
+            <FrameLayout
+                android:id="@+id/btnCapture"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless">
+
+                <View
+                    android:layout_width="74dp"
+                    android:layout_height="74dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/shutter_ring" />
+
+                <View
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/shutter_inner" />
+            </FrameLayout>
+
+            <!-- 右：切换镜头 -->
+            <FrameLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center_horizontal">
+
+                <ImageButton
+                    android:id="@+id/btnFlip"
+                    android:layout_width="54dp"
+                    android:layout_height="54dp"
+                    android:background="@drawable/bg_thumb"
+                    android:contentDescription="切换镜头"
+                    android:padding="15dp"
+                    android:src="@drawable/ic_flip" />
+            </FrameLayout>
+        </LinearLayout>
+
+        <!-- 校准入口 / 完成按钮 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnCalibrate"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:background="@drawable/bg_calib_button"
+                android:minWidth="0dp"
+                android:paddingHorizontal="20dp"
+                android:text="校准水平"
+                android:textColor="#3FD6C0"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnAutoLock"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/bg_calib_button"
+                android:minWidth="0dp"
+                android:paddingHorizontal="20dp"
+                android:text="自动锁定"
+                android:textColor="#3FD6C0"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnCalibDone"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/bg_calib_button"
+                android:minWidth="0dp"
+                android:paddingHorizontal="20dp"
+                android:text="完成校准"
+                android:enabled="false"
+                android:textColor="#3FD6C0"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/btnCalibCancel"
+                style="?android:attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/bg_zoom_pill"
+                android:minWidth="0dp"
+                android:paddingHorizontal="20dp"
+                android:text="取消"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>
